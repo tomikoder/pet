@@ -1,0 +1,29 @@
+server {
+	listen 80;
+	listen [::]:80;
+
+	root /var/www/core/public;
+
+	index index.php;
+
+	server_name localhost;
+
+	location / {
+		try_files $uri $uri/ /index.php?$query_string;
+	}
+	
+	location ~ \.php$ {
+		fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+		fastcgi_index index.php;
+		include fastcgi.conf;
+	}
+
+	location ~ /\.ht {
+		deny all;
+	}
+
+	location ~ /.well-known {
+        allow all;
+    }
+}
