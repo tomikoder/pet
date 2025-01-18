@@ -1,11 +1,11 @@
 <?php
 
-#declare(strict_types=1);
+declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http; 
+use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Redirect;
 
@@ -23,29 +23,30 @@ class PetController extends Controller
         if ($addContentType) {
             $headers['Content-Type'] = 'application/json';
         }
-        return Http::withHeaders($headers);   
+        return Http::withHeaders($headers);
     }
 
     private function handleErrorPet(int $errorCode): void
     {
-        if ($errorCode == 400) {
+        if ($errorCode === 400) {
             abort(400, "Invalid ID supplied");
         }
 
-        if ($errorCode == 404) {
-            abort(404, 'Pet not found');
+        if ($errorCode === 404) {
+            abort(404, 'Page not found');
         }
+        abort(500);
     }
 
     private function getInividualPet(int $id)
     {
         $response = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . sprintf('/pet/%s', $id));
-        if ($response->getStatusCode() != 200) {
+        if ($response->getStatusCode() !== 200) {
             $this->handleErrorPet($response->getStatusCode());
         }
         return $response->json();
     }
-    
+
     public function findPetById(int $id): View
     {
         $data = $this->getInividualPet($id);
@@ -55,7 +56,7 @@ class PetController extends Controller
     public function updatePetForm(int $id): View
     {
         $data = $this->getInividualPet($id);
-        return view('menu.update', ['item' => $data]);
+        return view('menu.update', ['item' => $data, 'statuses' => self::STATUSES]);
     }
 
     private function getRules(): array
@@ -65,7 +66,7 @@ class PetController extends Controller
             'category_name'    => 'required|string',
             'category_id' => 'required|numeric',
             'pet_name' => 'required|string',
-            'status'  => 'required|string'
+            'status'  => 'required|string|in:' . implode(separator: ',', array: self::STATUSES)
         ];
     }
 
@@ -74,12 +75,12 @@ class PetController extends Controller
         $rules = $this->getRules();
         foreach (array_keys($formData) as $key) {
             // Sprawdzamy, czy nazwa pola zaczyna się od 'id.'
-            if (preg_match('/^id_(\d+)$/', $key, $matches)) {    
+            if (preg_match('/^id_(\d+)$/', $key, $matches)) {
                     $id = $matches[1];
-                    $rules['id_' . $id] = 'required|integer'; 
+                    $rules['id_' . $id] = 'required|integer';
                     $rules['name_' . $id] = 'required|string|max:255';
-            } 
-        } 
+            }
+        }
         return $rules;
     }
 
@@ -87,7 +88,7 @@ class PetController extends Controller
     {
         $tags = [];
         foreach (array_keys($validatedData) as $key) {
-            if (preg_match('/^id_(\d+)$/', $key, $matches)) {    
+            if (preg_match('/^id_(\d+)$/', $key, $matches)) {
                 $id = $matches[1];
                 $tags[] = ['id' => $validatedData['id_' . $id], 'name' => $validatedData['name_' . $id]];
             }
@@ -104,7 +105,7 @@ class PetController extends Controller
                 'string'
             ],
             'tags' => $tags,
-            'status' => $validatedData['status'] 
+            'status' => $validatedData['status']
         ];
     }
 
@@ -123,7 +124,7 @@ class PetController extends Controller
 
     public function addPetForm()
     {
-        return view('menu.add');
+        return view('menu.add', ['statuses' => self::STATUSES]);
     }
 
     public function addPetAction(Request $request)
@@ -132,7 +133,10 @@ class PetController extends Controller
         $validatedData = $request->validate($rules);
         $id = $validatedData['id'];
         $jsonBody = $this->createJsonBody($validatedData);
-        $this->prepareHttpRequest(true)->POST(self::BASE_LINK . '/pet', $jsonBody);
+        $response = $this->prepareHttpRequest(true)->POST(self::BASE_LINK . '/pet', $jsonBody);
+        if ($response->getStatusCode() !== 200) {
+            abort(500);
+        }
         return Redirect::route('pet.get', ['id' => $id]);
     }
 
@@ -149,30 +153,34 @@ class PetController extends Controller
         if ($response->getStatusCode() !== 200) {
             $this->handleErrorPet($response->getStatusCode());
         }
-        return response('Success!');      
+        return response('Success!');
     }
 
     public function searchByStatusForm()
     {
-        return view('menu.findByStatus', ['statuses' => self::STATUSES]);   
+        return view('menu.findByStatus', ['statuses' => self::STATUSES]);
     }
 
     public function searchByStatusAction(Request $request)
     {
         $request->validate([
-            'status' => ['required', 'array'], 
+            'status' => ['required', 'array'],
             'status.*' => ['in:' . implode(',', self::STATUSES)]
         ]);
         $statuses = $request->input('status');
         $statusesWithPrefix = array_map(fn($status) => "status={$status}", $statuses);
         $queryString = implode('&', $statusesWithPrefix);
-        $data = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . '/pet/findByStatus?' . $queryString)->json();
-        return view('menu.list', ['pets' => $data]);   
+        $response = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . '/pet/findByStatus?' . $queryString);
+        if ($response->getStatusCode() !== 200) {
+            abort(500);
+        }
+        $data = $response->json();
+        return view('menu.list', ['pets' => $data]);
     }
 
     public function searchByTagsForm()
     {
-        return view('menu.findByTags');   
+        return view('menu.findByTags');
     }
 
     public function searchByStatusTags(Request $request)
@@ -180,7 +188,11 @@ class PetController extends Controller
         $tags = $request->input('tags');
         $tagsWithPrefix = array_map(fn($tag) => "tags={$tag}", $tags);
         $queryString = implode('&', $tagsWithPrefix);
-        $data = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . '/pet/findByTags?' . $queryString)->json();
-        return view('menu.list', ['pets' => $data]);   
+        $response = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . '/pet/findByTags?' . $queryString);
+        if ($response->getStatusCode() !== 200) {
+            abort(500);
+        }
+        $data = $response->json();
+        return view('menu.list', ['pets' => $data]);
     }
-} 
+}

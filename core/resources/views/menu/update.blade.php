@@ -21,9 +21,13 @@
   @if ($errors->has('pet_name'))
   <div style="color: red;" class="error">{{ $errors->first('pet_name') }}</div>
   @endif
-  <label for="status">Status name:</label><br>
-  <input type="text" id="status" name="status" value="{{ $item['status'] }}"><br>
-  @if ($errors->has('status'))
+  <label for="status">Wybierz status:</label>
+  <select id="status" name="status" value="{{ $item['status'] }}">
+  @foreach($statuses as $status)
+      <option value="{{ $status }}">{{ $status }}</option>
+  @endforeach
+  </select>
+@if ($errors->has('status'))
   <div style="color: red;" class="error">{{ $errors->first('status') }}</div>
   @endif
   <table>

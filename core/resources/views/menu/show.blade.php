@@ -1,4 +1,4 @@
-<p>Id: {{ $item['id'] ?? "" }}</p>
+<p>Id: {{ $item['id'] }}</p>
 <p>Category: {{ $item['category']['name'] ?? "" }}</p>
 <p>Name: {{ $item['name'] ?? "" }}</p>
 <p>Tags</p>
