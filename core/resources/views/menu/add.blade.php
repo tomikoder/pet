@@ -1,4 +1,4 @@
-<form method="POST" action="">
+<form method="POST" action="{{ route('pet.addAction') }}">
     @csrf
     <label for="id">Pet id:</label><br>
     <input type="text" id="id" name="id"><br>

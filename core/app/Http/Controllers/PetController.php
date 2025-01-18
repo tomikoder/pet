@@ -1,5 +1,7 @@
 <?php
 
+#declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -10,26 +12,38 @@ use Illuminate\Support\Facades\Redirect;
 class PetController extends Controller
 {
     private const BASE_LINK = 'https://petstore.swagger.io/v2';
+    private const STATUSES  = ['available', 'pending', 'sold'];
 
-    private function getInividualPet(int $id) : array
+    private function prepareHttpRequest(bool $addContentType)
     {
-        $response = Http::get(self::BASE_LINK . sprintf('/pet/%s', $id));
-        if ($response->getStatusCode() == 404) {
-            abort(404);
+        $headers = [
+            'accept' => 'application/json',
+        ];
+
+        if ($addContentType) {
+            $headers['Content-Type'] = 'application/json';
         }
-        return $response->json();
+        return Http::withHeaders($headers);   
     }
 
-    private function existsInividualPet(int $id) : bool
+    private function handleErrorPet(int $errorCode): void
     {
-        $response = Http::get(self::BASE_LINK . sprintf('/pet/%s', $id));
-        if ($response->getStatusCode() == 404) {
-            abort(404, 'Page not found');
+        if ($errorCode == 400) {
+            abort(400, "Invalid ID supplied");
         }
-        if ($response->getStatusCode() == 200) {
-            return true;
+
+        if ($errorCode == 404) {
+            abort(404, 'Pet not found');
         }
-        return false;
+    }
+
+    private function getInividualPet(int $id)
+    {
+        $response = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . sprintf('/pet/%s', $id));
+        if ($response->getStatusCode() != 200) {
+            $this->handleErrorPet($response->getStatusCode());
+        }
+        return $response->json();
     }
     
     public function findPetById(int $id): View
@@ -94,37 +108,17 @@ class PetController extends Controller
         ];
     }
 
-    private function handleErrorUpdate(int $num): void
-    {
-        if ($num == 400) {
-            abort(400, 'Invalid ID supplied');
-        }
-        if ($num == 404) {
-            abort(404, 'Pet not found');
-        }
-        if ($num == 405) {
-            abort(404, 'Validation exception');
-        }
-    }
-
     public function updatePetAction(Request $request, int $id)
     {
-        $this->getInividualPet($id);
         $rules = $this->createDynamicRules($request->all());
         $validatedData = $request->validate($rules);
         $jsonBody = $this->createJsonBody($validatedData);
-        $response = Http::withHeaders([
-            'accept' => 'application/json',
-            'Content-Type' => 'application/json'
-        ])->PUT(self::BASE_LINK . '/pet', $jsonBody);
-
+        $response = $this->prepareHttpRequest(true)->PUT(self::BASE_LINK . '/pet', $jsonBody);
         if ($response->getStatusCode() !== 200) {
-            $this->handleErrorUpdate($response->getStatusCode());
+            $this->handleErrorPet($response->getStatusCode());
         }
 
-        if ($response->getStatusCode() == 200) {
-            return Redirect::route('pet.get', ['id' => $id]);
-        }
+        return Redirect::route('pet.get', ['id' => $id]);
     }
 
     public function addPetForm()
@@ -136,7 +130,57 @@ class PetController extends Controller
     {
         $rules = $this->createDynamicRules($request->all());
         $validatedData = $request->validate($rules);
-        echo var_dump($validatedData['id']);
-        return;
+        $id = $validatedData['id'];
+        $jsonBody = $this->createJsonBody($validatedData);
+        $this->prepareHttpRequest(true)->POST(self::BASE_LINK . '/pet', $jsonBody);
+        return Redirect::route('pet.get', ['id' => $id]);
+    }
+
+    public function deletePetForm()
+    {
+        return view('menu.delete');
+    }
+
+    public function deletePetAction(Request $request)
+    {
+        $validatedData = $request->validate(['id' => 'required|numeric']);
+        $id = $validatedData['id'];
+        $response = $this->prepareHttpRequest(true)->DELETE(self::BASE_LINK . sprintf('/pet/%s', $id));
+        if ($response->getStatusCode() !== 200) {
+            $this->handleErrorPet($response->getStatusCode());
+        }
+        return response('Success!');      
+    }
+
+    public function searchByStatusForm()
+    {
+        return view('menu.findByStatus', ['statuses' => self::STATUSES]);   
+    }
+
+    public function searchByStatusAction(Request $request)
+    {
+        $request->validate([
+            'status' => ['required', 'array'], 
+            'status.*' => ['in:' . implode(',', self::STATUSES)]
+        ]);
+        $statuses = $request->input('status');
+        $statusesWithPrefix = array_map(fn($status) => "status={$status}", $statuses);
+        $queryString = implode('&', $statusesWithPrefix);
+        $data = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . '/pet/findByStatus?' . $queryString)->json();
+        return view('menu.list', ['pets' => $data]);   
+    }
+
+    public function searchByTagsForm()
+    {
+        return view('menu.findByTags');   
+    }
+
+    public function searchByStatusTags(Request $request)
+    {
+        $tags = $request->input('tags');
+        $tagsWithPrefix = array_map(fn($tag) => "tags={$tag}", $tags);
+        $queryString = implode('&', $tagsWithPrefix);
+        $data = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . '/pet/findByTags?' . $queryString)->json();
+        return view('menu.list', ['pets' => $data]);   
     }
 } 

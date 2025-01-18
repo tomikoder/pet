@@ -1,4 +1,5 @@
 <form method="POST" action="{{ route('pet.updateAction', ['id' => $item['id']]) }}">
+  @method('PUT')
   @csrf
   <label for="id">Pet id:</label><br>
   <input type="text" id="id" name="id" value="{{ $item['id'] }}" readonly><br>
