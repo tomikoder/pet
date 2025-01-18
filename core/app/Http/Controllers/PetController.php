@@ -8,13 +8,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 
 class PetController extends Controller
 {
     private const BASE_LINK = 'https://petstore.swagger.io/v2';
     private const STATUSES  = ['available', 'pending', 'sold'];
 
-    private function prepareHttpRequest(bool $addContentType)
+    private function prepareHttpRequest(bool $addContentType): PendingRequest
     {
         $headers = [
             'accept' => 'application/json',
@@ -38,7 +41,7 @@ class PetController extends Controller
         abort(500);
     }
 
-    private function getInividualPet(int $id)
+    private function getInividualPet(int $id): array
     {
         $response = $this->prepareHttpRequest(false)->GET(self::BASE_LINK . sprintf('/pet/%s', $id));
         if ($response->getStatusCode() !== 200) {
@@ -109,7 +112,7 @@ class PetController extends Controller
         ];
     }
 
-    public function updatePetAction(Request $request, int $id)
+    public function updatePetAction(Request $request, int $id): RedirectResponse
     {
         $rules = $this->createDynamicRules($request->all());
         $validatedData = $request->validate($rules);
@@ -122,12 +125,12 @@ class PetController extends Controller
         return Redirect::route('pet.get', ['id' => $id]);
     }
 
-    public function addPetForm()
+    public function addPetForm(): View
     {
         return view('menu.add', ['statuses' => self::STATUSES]);
     }
 
-    public function addPetAction(Request $request)
+    public function addPetAction(Request $request): RedirectResponse
     {
         $rules = $this->createDynamicRules($request->all());
         $validatedData = $request->validate($rules);
@@ -140,12 +143,12 @@ class PetController extends Controller
         return Redirect::route('pet.get', ['id' => $id]);
     }
 
-    public function deletePetForm()
+    public function deletePetForm(): View
     {
         return view('menu.delete');
     }
 
-    public function deletePetAction(Request $request)
+    public function deletePetAction(Request $request): Response
     {
         $validatedData = $request->validate(['id' => 'required|numeric']);
         $id = $validatedData['id'];
@@ -156,12 +159,12 @@ class PetController extends Controller
         return response('Success!');
     }
 
-    public function searchByStatusForm()
+    public function searchByStatusForm(): View
     {
         return view('menu.findByStatus', ['statuses' => self::STATUSES]);
     }
 
-    public function searchByStatusAction(Request $request)
+    public function searchByStatusAction(Request $request): View
     {
         $request->validate([
             'status' => ['required', 'array'],
@@ -178,12 +181,12 @@ class PetController extends Controller
         return view('menu.list', ['pets' => $data]);
     }
 
-    public function searchByTagsForm()
+    public function searchByTagsForm(): View
     {
         return view('menu.findByTags');
     }
 
-    public function searchByStatusTags(Request $request)
+    public function searchByStatusTags(Request $request): View
     {
         $tags = $request->input('tags');
         $tagsWithPrefix = array_map(fn($tag) => "tags={$tag}", $tags);

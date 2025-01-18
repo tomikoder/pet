@@ -4,7 +4,7 @@
 <p>Tags</p>
 <ul> 
 @foreach ($item['tags'] as $tag)
- <li>{{ $tag['name'] }}</li>
+ <li>{{ $tag['name'] ?? "" }}</li>
 @endforeach
 </ul>
 <p>Status: {{ $item['status'] }} </p>

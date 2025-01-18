@@ -40,8 +40,10 @@
     <tbody id="tableBody">
             @foreach ($item['tags'] as $tag)
             <tr>
+                <td>{{ $loop->iteration }}</td> <!-- Numer wiersza -->
                 <td class="id"><input type="text" name="{{ 'id_' . $loop->iteration }}" placeholder="Wpisz ID" value="{{ $tag['id'] }}"></td>
                 <td><input type="text" name="{{ 'name_' . $loop->iteration }}" placeholder="Wpisz nazwę" value ="{{ $tag['name'] }}"></td>
+                <td><button type="button" onclick="removeRow(this)">Usuń</button></td> <!-- Przycisk usuwania -->
             </tr>
             @endforeach
     </tbody>
@@ -49,25 +51,6 @@
     <button type="button" onclick="addRow()">Dodaj wiersz</button>
   <button type="submit">Send</button>
 </form>
-@if($errors->any())
-    @foreach($errors->keys() as $key)
-        @if(str_starts_with($key, 'id_'))
-            <p>{{ $key }} ma błąd: {{ $errors->first($key) }}</p>
-        @elseif(str_starts_with($key, 'name_'))
-            <p>{{ $key }} ma błąd: {{ $errors->first($key) }}</p>
-        @endif
-    @endforeach
-@endif
-<script>
-    let counter = document.querySelectorAll('.id').length;
-    function addRow() {
-        counter++;
-        const tableBody = document.getElementById('tableBody');
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-            <td class="id"><input type="text" name="id.${counter}" placeholder="Wpisz ID"></td>
-            <td><input type="text" name="name.${counter}" placeholder="Wpisz nazwę"></td>
-        `;
-        tableBody.appendChild(newRow);
-    }
-</script> 
+@include('menu.addUpdateCommon')
+
+
